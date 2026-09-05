@@ -16,12 +16,11 @@ func NewLoggingPostSignUpWorker(inner port.PostSignUpWorker) *LoggingPostSignUpW
 }
 
 func (w *LoggingPostSignUpWorker) Execute(ctx context.Context, event port.PostSignUpEvent) error {
-	logger.Debug("Executing post sign-up event", "user", event.UserID)
 	if err := w.inner.Execute(ctx, event); err != nil {
 		logger.Error("Failed to execute post sign-up event", "error", err)
 		return err
 	}
 
-	logger.Debug("Executed post sign-up event", "user", event.UserID)
+	logger.Info("Executed post sign-up event", "user", event.UserID)
 	return nil
 }

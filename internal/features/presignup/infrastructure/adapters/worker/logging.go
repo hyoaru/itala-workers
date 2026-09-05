@@ -16,12 +16,11 @@ func NewLoggingPreSignUpWorker(inner port.PreSignUpWorker) *LoggingPreSignUpWork
 }
 
 func (w *LoggingPreSignUpWorker) Execute(ctx context.Context, event port.PreSignUpEvent) error {
-	logger.Debug("Executing pre sign-up event", "email", event.Email)
 	if err := w.inner.Execute(ctx, event); err != nil {
 		logger.Error("Failed to execute pre sign-up event", "error", err)
 		return err
 	}
 
-	logger.Debug("Executed pre sign-up event", "email", event.Email)
+	logger.Info("Executed pre sign-up event", "email", event.Email)
 	return nil
 }
