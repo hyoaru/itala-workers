@@ -1,0 +1,8 @@
+module github.com/hyoaru/itala-workers
+
+go 1.26.5
+
+require (
+	github.com/aws/aws-lambda-go v1.55.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
+)
