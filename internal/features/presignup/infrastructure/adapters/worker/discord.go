@@ -3,6 +3,7 @@ package presignup
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	port "github.com/hyoaru/itala-workers/internal/features/presignup/application/port/worker"
 	"github.com/hyoaru/itala-workers/internal/shared/infrastructure/external/discordwebhookclient"
@@ -18,7 +19,7 @@ func NewDiscordPreSignUpWorker(webhookClient discordwebhookclient.DiscordWebhook
 
 func (w *DiscordPreSignUpWorker) Execute(ctx context.Context, event port.PreSignUpEvent) error {
 	embed := discordwebhookclient.Embed{
-		Title:       fmt.Sprintf("%s: Pre-confirmation Sign Up", event.Environment),
+		Title:       fmt.Sprintf("%s: Pre-confirmation Sign Up", strings.ToUpper(event.Environment)),
 		Description: "A user is attempting to sign up for itala!",
 		Color:       16776960,
 		Fields: []discordwebhookclient.EmbedField{

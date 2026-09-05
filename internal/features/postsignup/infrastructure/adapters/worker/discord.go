@@ -3,6 +3,7 @@ package postsignup
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	port "github.com/hyoaru/itala-workers/internal/features/postsignup/application/port/worker"
 	"github.com/hyoaru/itala-workers/internal/shared/infrastructure/external/discordwebhookclient"
@@ -18,7 +19,7 @@ func NewDiscordPostSignUpWorker(webhookClient discordwebhookclient.DiscordWebhoo
 
 func (w *DiscordPostSignUpWorker) Execute(ctx context.Context, event port.PostSignUpEvent) error {
 	embed := discordwebhookclient.Embed{
-		Title:       fmt.Sprintf("%s: Post-confirmation Sign Up", event.Environment),
+		Title:       fmt.Sprintf("%s: Post-confirmation Sign Up", strings.ToUpper(event.Environment)),
 		Description: "A new user has joined itala!",
 		Color:       14807354,
 		Fields: []discordwebhookclient.EmbedField{
