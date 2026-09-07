@@ -121,7 +121,6 @@ jobs:
         uses: hyoaru/actions/actions-status-discord@v1
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          status: ${{ job.status }}
           title: "Itala Worker Release - Pre-Confirmation Sign-Up"
           description: |
             Environment: `${{ needs.setup.outputs.environment }}`
