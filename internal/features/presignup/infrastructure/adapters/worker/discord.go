@@ -21,7 +21,7 @@ func (w *DiscordPreSignUpWorker) Execute(ctx context.Context, event port.PreSign
 	embed := discordwebhookclient.Embed{
 		Title:       fmt.Sprintf("%s: Pre-confirmation Sign Up", strings.ToUpper(event.Environment)),
 		Description: "A user is attempting to sign up for itala!",
-		Color:       16776960,
+		Color:       65790,
 		Fields: []discordwebhookclient.EmbedField{
 			{
 				Name:   "Email",
