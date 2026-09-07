@@ -1,0 +1,130 @@
+name: CD Pre-Confirmation Sign-Up Worker
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "cmd/presignup/**"
+      - "internal/features/presignup/**"
+      - "internal/shared/**"
+      - "go.mod"
+      - "go.sum"
+
+env:
+  AWS_REGION: ap-southeast-1
+
+jobs:
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.setup.outputs.environment }}
+    steps:
+      - id: setup
+        run: |
+          if [[ "$GITHUB_REF_NAME" == "develop" ]]; then
+            echo "environment=staging" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_REF_NAME" == "master" ]]; then
+            echo "environment=production" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unsupported branch: $GITHUB_REF_NAME"
+            exit 1
+          fi
+
+  build:
+    needs: [setup]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: ${{ needs.setup.outputs.environment }}
+    steps:
+      - name: Checkout
+        uses: hyoaru/actions/checkout@v1
+
+      - name: Setup Go
+        uses: hyoaru/actions/setup-go@v1
+        with:
+          go-version-file: "go.mod"
+
+      - name: Build lambda
+        run: |
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o bootstrap cmd/presignup/main.go
+          zip -j function.zip bootstrap
+
+      - name: Upload build artifact
+        uses: hyoaru/actions/upload-artifact@v1
+        with:
+          name: build-artifact
+          path: function.zip
+          if-no-files-found: error
+
+  deploy:
+    needs: [setup, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: ${{ needs.setup.outputs.environment }}
+    steps:
+      - name: Download build artifact
+        uses: hyoaru/actions/download-artifact@v1
+        with:
+          name: build-artifact
+          path: .
+
+      - name: Configure AWS credentials
+        uses: hyoaru/actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get configuration
+        run: |
+          FUNCTION_S3_URI=$(aws ssm get-parameter \
+            --name "/itala/worker/pre-confirmation-sign-up/function-s3-uri" \
+            --query "Parameter.Value" \
+            --output text)
+          FUNCTION_S3_URI_BASE=$(aws ssm get-parameter \
+            --name "/itala/worker/pre-confirmation-sign-up/function-s3-uri-base" \
+            --query "Parameter.Value" \
+            --output text)
+          FUNCTION_NAME=$(aws ssm get-parameter \
+            --name "/itala/worker/pre-confirmation-sign-up/function-name" \
+            --query "Parameter.Value" \
+            --output text)
+
+
+          echo "FUNCTION_S3_URI=$FUNCTION_S3_URI" >> "$GITHUB_ENV"
+          echo "FUNCTION_S3_URI_BASE=$FUNCTION_S3_URI_BASE" >> "$GITHUB_ENV"
+          echo "FUNCTION_NAME=$FUNCTION_NAME" >> "$GITHUB_ENV"
+
+      - name: Deploy function
+        run: |
+          # Deploy  to s3
+          aws s3 cp function.zip "${{ env.FUNCTION_S3_URI }}"
+          aws s3 cp function.zip "${{ env.FUNCTION_S3_URI_BASE }}/${{ needs.version.outputs.tag }}/function.zip"
+          # Update lambda function
+          S3_URI="${{ env.FUNCTION_S3_URI }}"
+          S3_BUCKET="${S3_URI#s3://}"
+          S3_BUCKET="${S3_BUCKET%%/*}"
+          S3_KEY="${S3_URI#s3://*/}"
+          aws lambda update-function-code --function-name ${{ env.FUNCTION_NAME }} --s3-bucket "$S3_BUCKET" --s3-key "$S3_KEY"
+  notify:
+    needs: [setup, build, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify discord
+        uses: hyoaru/actions/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          status: ${{ job.status }}
+          title: "Itala Worker Release - Pre-Confirmation Sign-Up"
+          description: |
+            Environment: `${{ needs.setup.outputs.environment }}`
+            Setup: `${{ needs.setup.result }}`
+            Build: `${{ needs.build.result }}`
+            Deploy: `${{ needs.deploy.result }}`
